@@ -37,7 +37,6 @@ class CircuitEditor:
             ("Voltaje", "voltaje"),
             ("Cable H", "cable_h"),
             ("Cable V", "cable_v"),
-            ("Capacitor", "capacitor"),  
             ("Nodo", "nodo")
         ]
 
@@ -62,7 +61,7 @@ class CircuitEditor:
         else:
             tipo = self.componente_seleccionado
             valor = None
-            if tipo in ("resistencia", "voltaje", "capacitor"):
+            if tipo in ("resistencia", "voltaje"):
                 valor = sd.askfloat(
                     "Valor del componente",
                     f"Ingrese el valor para {tipo.upper()} en ({fila},{col}):",
@@ -112,9 +111,6 @@ class CircuitEditor:
                 # Dibuja el número del nodo al lado del punto azul
                 nombre_nodo = pos_a_nodo.get((fila, col), "")
                 self.canvas.create_text(x, y-15, text=nombre_nodo, fill="black", font=("Arial", 10, "bold"), tags="componente")
-            elif tipo == "capacitor":
-                self.canvas.create_rectangle(x-20, y-10, x+20, y+10, fill="lightblue", tags="componente")
-                self.canvas.create_text(x, y, text=f"A\n{valor}", tags="componente")
 
     def calcular_mallas(self):
         import calculadora_malla as cm
@@ -186,6 +182,25 @@ class CircuitEditor:
         mb.showinfo("Operación de malla(s)", msg)
         mb.showinfo("Solución de mallas", f"{soluciones}")
 
+        self.canvas.delete("flecha_malla")  # Borra flechas anteriores
+
+        for malla in mallas:
+            for i in range(len(malla)):
+                n1 = malla[i]
+                n2 = malla[(i+1)%len(malla)]
+                pos1 = pos2 = None
+                for pos, nombre in pos_a_nodo.items():
+                    if nombre == n1:
+                        pos1 = pos
+                    if nombre == n2:
+                        pos2 = pos
+                if pos1 and pos2:
+                    x0 = pos1[1] * TAM_CASILLA + TAM_CASILLA // 2
+                    y0 = pos1[0] * TAM_CASILLA + TAM_CASILLA // 2
+                    x1 = pos2[1] * TAM_CASILLA + TAM_CASILLA // 2
+                    y1 = pos2[0] * TAM_CASILLA + TAM_CASILLA // 2
+                    self.dibujar_flecha_pequena(x0, y0, x1, y1)
+
     def obtener_nodos_manuales(self):
         nodos_manuales = []
         for (fila, col), dato in self.componentes.items():
@@ -210,5 +225,42 @@ class CircuitEditor:
         else:
             return None  # No es un camino recto
         return camino
+
+    def dibujar_flecha(self, x0, y0, x1, y1, color="red"):
+        self.canvas.create_line(x0, y0, x1, y1, arrow=tk.LAST, fill=color, width=2, tags="flecha_malla")
+
+    def dibujar_flecha_pequena(self, x0, y0, x1, y1, color="red"):
+        # Calcula el punto medio
+        xm = (x0 + x1) / 2
+        ym = (y0 + y1) / 2
+        # Calcula la dirección
+        dx = x1 - x0
+        dy = y1 - y0
+        longitud = (dx**2 + dy**2) ** 0.5
+        if longitud == 0:
+            return
+        # Normaliza y escala la flecha
+        escala = 24
+        ux = dx / longitud
+        uy = dy / longitud
+        # Perpendicular para desplazar la flecha
+        perp_x = -uy
+        perp_y = ux
+        desplazamiento = 18  # píxeles fuera de la línea
+        xm_d = xm + perp_x * desplazamiento
+        ym_d = ym + perp_y * desplazamiento
+        # Punto de la punta
+        px = xm_d + ux * escala / 2
+        py = ym_d + uy * escala / 2
+        # Base de la flecha
+        bx = xm_d - ux * escala / 2
+        by = ym_d - uy * escala / 2
+        # Alas
+        wing = 7
+        # Dibuja la línea central
+        self.canvas.create_line(bx, by, px, py, fill=color, width=3, tags="flecha_malla")
+        # Dibuja las alas
+        self.canvas.create_line(px, py, px - ux * 7 + perp_x * wing, py - uy * 7 + perp_y * wing, fill=color, width=3, tags="flecha_malla")
+        self.canvas.create_line(px, py, px - ux * 7 - perp_x * wing, py - uy * 7 - perp_y * wing, fill=color, width=3, tags="flecha_malla")
 
 
