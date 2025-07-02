@@ -29,7 +29,6 @@ def detectar_mallas(G, max_mallas=None):
 
 
 def armar_ecuaciones(mallas, conexiones):
-    import sympy as sp
 
     n = len(mallas)
     I = sp.symbols(f'I1:{n+1}')  # I1, I2, ..., In
@@ -148,9 +147,28 @@ class Aplicacion:
         for eq in ecuaciones:
             print(eq)
 
-        mb.showinfo("Ecuaciones de malla", "\n".join([str(eq) for eq in ecuaciones]))
+        ecuaciones_texto = []
+        for idx, eq in enumerate(ecuaciones):
+            linea = f"{eq}"
+            if soluciones:
+                corriente = soluciones.get(sp.symbols(f'I{idx+1}'), None)
+                if corriente is not None:
+                    linea += f"\nI{idx+1} = {corriente}"
+            ecuaciones_texto.append(linea)
+
+        mb.showinfo("Ecuaciones de malla", "\n\n".join(ecuaciones_texto))
         print("Soluciones de corrientes de malla:", soluciones)
         mb.showinfo("Solución de mallas", f"{soluciones}")
+
+        msg = "Resultados de las Mallas:\n"
+        for idx, (op_simbolica, op_numerica, op_fuentes) in enumerate(operaciones):
+            msg += f"Malla {idx+1}:\n"
+            msg += f"  Ecuación: {ecuaciones[idx]}\n"
+            if soluciones:
+                corriente = soluciones.get(sp.symbols(f'I{idx+1}'), None)
+                if corriente is not None:
+                    msg += f"  I{idx+1} = {corriente}\n"
+        mb.showinfo("Detalles de las Mallas", msg)
 
     def obtener_camino(self, pos1, pos2):
         # Solo permite caminos horizontales o verticales
