@@ -45,6 +45,15 @@ class CircuitEditor:
             b.pack(side=tk.LEFT, padx=5)
 
         tk.Button(marco, text="Calcular Mallas", command=self.calcular_mallas).pack(side=tk.LEFT, padx=5)
+        tk.Button(marco, text= "Limpiar Mallas", command=self.borrar_mallas).pack(side=tk.LEFT, padx=5)
+
+    def borrar_mallas(self):
+        self.canvas.delete("flecha_malla")
+        self.canvas.delete("componente")
+        self.componentes.clear()
+        self.redibujar_componentes()
+        
+
 
     def seleccionar_componente(self, tipo):
         self.componente_seleccionado = tipo
