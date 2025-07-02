@@ -7,6 +7,9 @@ def construir_grafo(nodos, componentes, conexiones):
     for nodo in nodos:
         G.add_node(nodo)
     for c in conexiones:
+        if len(c) != 4:
+            print(f"❌ Conexión inválida en índice: {c} (esperado 4 elementos)")
+            continue
         n1, n2, tipo, valor = c
         G.add_edge(n1, n2, tipo=tipo, valor=valor)
     return G
@@ -115,10 +118,11 @@ class Aplicacion:
                                     f"Ingrese el valor para {tipo.upper()} entre {pos1} y {pos2}:",
                                     minvalue=0.01, initialvalue=1.0
                                 )
-                            par = tuple(sorted([pos_a_nodo[pos1], pos_a_nodo[pos2]]) + [tipo])
-                            if par not in conexiones_set:
-                                conexiones_set.add(par)
-                                conexiones.append((pos_a_nodo[pos1], pos_a_nodo[pos2], tipo, valor))
+                            if valor is not None:
+                                par = tuple(sorted([pos_a_nodo[pos1], pos_a_nodo[pos2]]) + [tipo,valor])
+                                if par not in conexiones_set:
+                                    conexiones_set.add(par)
+                                    conexiones.append((pos_a_nodo[pos1], pos_a_nodo[pos2], tipo, valor))
                         # NO AGREGUES NADA PARA LOS CABLES
 
         # 3. Construye el grafo y detecta mallas

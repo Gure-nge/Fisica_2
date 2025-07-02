@@ -143,16 +143,16 @@ class CircuitEditor:
                                     f"Ingrese el valor para {tipo.upper()} entre {pos1} y {pos2}:",
                                     minvalue=0.01, initialvalue=1.0
                                 )
-                            par = tuple(sorted([pos_a_nodo[pos1], pos_a_nodo[pos2]]) + [tipo])
+                            par = tuple(sorted([pos_a_nodo[pos1], pos_a_nodo[pos2]]) + [tipo, valor])
                             if par not in conexiones_set:
                                 conexiones_set.add(par)
                                 conexiones.append((pos_a_nodo[pos1], pos_a_nodo[pos2], tipo, valor))
                         elif tipo in ("cable_h", "cable_v"):
                             # Si solo hay cables, puedes poner una resistencia de valor 0 (o 1e-6)
-                            par = tuple(sorted([pos_a_nodo[pos1], pos_a_nodo[pos2]]) + ["resistencia"])
+                            par = tuple(sorted([pos_a_nodo[pos1], pos_a_nodo[pos2]]) + ["resistencia", 1e-6])
                             if par not in conexiones_set:
                                 conexiones_set.add(par)
-                                conexiones.append((pos_a_nodo[pos1], pos_a_nodo[pos2], "resistencia",))
+                                conexiones.append((pos_a_nodo[pos1], pos_a_nodo[pos2], "resistencia", 1e-6))
                         # Si quieres que los capacitores participen en el análisis, agrega aquí la lógica
 
         # 3. Construye el grafo y detecta mallas
