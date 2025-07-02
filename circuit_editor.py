@@ -1,44 +1,8 @@
 import tkinter as tk
-from collections import defaultdict, deque
 
 TAM_CASILLA = 60
-FILA = 8
+FILA = 10
 COLUMNA = 10
-
-def detectar_nodos(componentes):
-    grafo = defaultdict(list)
-    for (fila, col), tipo in componentes.items():
-        if tipo == "cable_h":
-            for dcol in [-1, 1]:
-                vecino = (fila, col + dcol)
-                if vecino in componentes:
-                    grafo[(fila, col)].append(vecino)
-                    grafo[vecino].append((fila, col))
-        elif tipo == "cable_v":
-            for dfila in [-1, 1]:
-                vecino = (fila + dfila, col)
-                if vecino in componentes:
-                    grafo[(fila, col)].append(vecino)
-                    grafo[vecino].append((fila, col))
-    visitados = set()
-    nodos = []
-    for celda in componentes:
-        if celda not in visitados and celda in grafo:
-            nodo_actual = []
-            cola = deque([celda])
-            while cola:
-                actual = cola.popleft()
-                if actual not in visitados:
-                    visitados.add(actual)
-                    nodo_actual.append(actual)
-                    for vecino in grafo[actual]:
-                        if vecino not in visitados:
-                            cola.append(vecino)
-            nodos.append(nodo_actual)
-    print("🔌 Nodos detectados:")
-    for i, grupo in enumerate(nodos):
-        print(f" Nodo {i}: {grupo}")
-    return nodos
 
 class CircuitEditor:
     def __init__(self, root):
@@ -73,6 +37,7 @@ class CircuitEditor:
             ("Voltaje", "voltaje"),
             ("Cable H", "cable_h"),
             ("Cable V", "cable_v"),
+            ("Capacitor", "capacitor"),  
             ("Nodo", "nodo")
         ]
 
@@ -80,25 +45,14 @@ class CircuitEditor:
             b = tk.Button(marco, text=texto, command=lambda t=tipo: self.seleccionar_componente(t))
             b.pack(side=tk.LEFT, padx=5)
 
-        tk.Button(marco, text="Detectar Nodos", command=self.mostrar_nodos).pack(side=tk.LEFT, padx=5)
-
-    def mostrar_nodos(self):
-        nodos = detectar_nodos(self.componentes)
-        self.canvas.delete("nodo_id")  # Borra círculos anteriores
-
-        # Dibuja los nodos detectados y los etiqueta
-        for i, grupo in enumerate(nodos):
-            for (fila, col) in grupo:
-                x = col * TAM_CASILLA + TAM_CASILLA // 2
-                y = fila * TAM_CASILLA + TAM_CASILLA // 2
-                r = 6  # radio del nodo visual
-                self.canvas.create_oval(x - r, y - r, x + r, y + r, fill="blue", outline="black", tags="nodo_id")
-                self.canvas.create_text(x + 10, y - 10, text=f"N{i}", fill="blue", font=("Arial", 8), tags="nodo_id")
+        tk.Button(marco, text="Calcular Mallas", command=self.calcular_mallas).pack(side=tk.LEFT, padx=5)
 
     def seleccionar_componente(self, tipo):
         self.componente_seleccionado = tipo
 
     def colocar_componente(self, evento):
+        import tkinter.simpledialog as sd
+
         col = evento.x // TAM_CASILLA
         fila = evento.y // TAM_CASILLA
         pos = (fila, col)
@@ -106,22 +60,40 @@ class CircuitEditor:
         if pos in self.componentes:
             self.componentes.pop(pos)
         else:
-            self.componentes[pos] = self.componente_seleccionado
+            tipo = self.componente_seleccionado
+            valor = None
+            if tipo in ("resistencia", "voltaje", "capacitor"):
+                valor = sd.askfloat(
+                    "Valor del componente",
+                    f"Ingrese el valor para {tipo.upper()} en ({fila},{col}):",
+                    minvalue=0.01, initialvalue=1.0
+                )
+                if valor is None:
+                    return  # No colocar si el usuario cancela
+                self.componentes[pos] = (tipo, valor)
+            else:
+                self.componentes[pos] = tipo
 
         self.redibujar_componentes()
 
     def redibujar_componentes(self):
         self.canvas.delete("componente")
-        for (fila, col), tipo in self.componentes.items():
+        for (fila, col), dato in self.componentes.items():
+            if isinstance(dato, tuple):
+                tipo, valor = dato
+            else:
+                tipo = dato
+                valor = None
+
             x = col * TAM_CASILLA + TAM_CASILLA // 2
             y = fila * TAM_CASILLA + TAM_CASILLA // 2
 
             if tipo == "resistencia":
                 self.canvas.create_rectangle(x-20, y-10, x+20, y+10, fill="orange", tags="componente")
-                self.canvas.create_text(x, y, text="R", tags="componente")
+                self.canvas.create_text(x, y, text=f"R\n{valor}", tags="componente")
             elif tipo == "voltaje":
                 self.canvas.create_oval(x-15, y-15, x+15, y+15, outline="blue", width=2, tags="componente")
-                self.canvas.create_text(x, y, text="V", tags="componente")
+                self.canvas.create_text(x, y, text=f"V\n{valor}", tags="componente")
             elif tipo == "cable_h":
                 self.canvas.create_line(x-20, y, x+20, y, fill="black", width=3, tags="componente")
             elif tipo == "cable_v":
@@ -129,44 +101,103 @@ class CircuitEditor:
             elif tipo == "nodo":
                 r = 6
                 self.canvas.create_oval(x - r, y - r, x + r, y + r, fill="blue", outline="black", tags="componente")
+            elif tipo == "capacitor":
+                self.canvas.create_rectangle(x-20, y-10, x+20, y+10, fill="lightblue", tags="componente")
+                self.canvas.create_text(x, y, text=f"A\n{valor}", tags="componente")
 
     def calcular_mallas(self):
-        # Extrae nodos y conexiones del circuito dibujado
-        # Nodos: todos los nodos detectados
-        # Conexiones: cada componente entre dos nodos
-        nodos_detectados = detectar_nodos(self.componentes)
-        nodos = [f"N{i}" for i in range(len(nodos_detectados))]
-        conexiones = []
-
-        # Mapea cada celda a su nodo
-        celda_a_nodo = {}
-        for idx, grupo in enumerate(nodos_detectados):
-            for celda in grupo:
-                celda_a_nodo[celda] = f"N{idx}"
-
-        # Busca conexiones entre nodos (solo resistencias y voltajes)
-        for (fila, col), tipo in self.componentes.items():
-            if tipo in ("resistencia", "voltaje"):
-                # Busca vecinos conectados por cables
-                for df, dc in [(-1,0),(1,0),(0,-1),(0,1)]:
-                    vecino = (fila+df, col+dc)
-                    if vecino in celda_a_nodo and (fila, col) in celda_a_nodo:
-                        n1 = celda_a_nodo[(fila, col)]
-                        n2 = celda_a_nodo[vecino]
-                        if n1 != n2:
-                            # Valor por defecto (puedes pedirlo al usuario)
-                            valor = 1.0
-                            conexiones.append((n1, n2, tipo, valor))
-
-        # Importa y usa calculadora_malla
         import calculadora_malla as cm
-        G = cm.construir_grafo(nodos, [], conexiones)
-        mallas = cm.detectar_mallas(G)
-        print("Mallas encontradas:", mallas)
-        # Aquí podrías mostrar las mallas en la interfaz o resolverlas
-
-        # (Opcional) Mostrar en un messagebox
+        import tkinter.simpledialog as sd
         import tkinter.messagebox as mb
+
+        # 1. Detecta nodos manuales
+        nodos_manuales = self.obtener_nodos_manuales()
+        if len(nodos_manuales) < 2:
+            mb.showerror("Error", "Debes colocar al menos dos nodos manuales para analizar mallas.")
+            return
+
+        nodos = [f"N{i}" for i in range(len(nodos_manuales))]
+        pos_a_nodo = {pos: nodos[i] for i, pos in enumerate(nodos_manuales)}
+
+        conexiones = []
+        conexiones_set = set()
+
+        # 2. Busca componentes entre nodos manuales (en línea recta)
+        for i, pos1 in enumerate(nodos_manuales):
+            for j, pos2 in enumerate(nodos_manuales):
+                if i >= j:
+                    continue
+                camino = self.obtener_camino(pos1, pos2)
+                if not camino:
+                    continue
+                # Busca si hay un componente entre los nodos
+                for punto in camino:
+                    if punto in self.componentes:
+                        dato = self.componentes[punto]
+                        tipo = dato[0] if isinstance(dato, tuple) else dato
+                        valor = dato[1] if isinstance(dato, tuple) else None
+                        if tipo in ("resistencia", "voltaje"):
+                            if valor is None:
+                                valor = sd.askfloat(
+                                    "Valor del componente",
+                                    f"Ingrese el valor para {tipo.upper()} entre {pos1} y {pos2}:",
+                                    minvalue=0.01, initialvalue=1.0
+                                )
+                            par = tuple(sorted([pos_a_nodo[pos1], pos_a_nodo[pos2]]) + [tipo])
+                            if par not in conexiones_set:
+                                conexiones_set.add(par)
+                                conexiones.append((pos_a_nodo[pos1], pos_a_nodo[pos2], tipo, valor))
+                        elif tipo in ("cable_h", "cable_v"):
+                            # Si solo hay cables, puedes poner una resistencia de valor 0 (o 1e-6)
+                            par = tuple(sorted([pos_a_nodo[pos1], pos_a_nodo[pos2]]) + ["resistencia"])
+                            if par not in conexiones_set:
+                                conexiones_set.add(par)
+                                conexiones.append((pos_a_nodo[pos1], pos_a_nodo[pos2], "resistencia",))
+                        # Si quieres que los capacitores participen en el análisis, agrega aquí la lógica
+
+        # 3. Construye el grafo y detecta mallas
+        G = cm.construir_grafo(nodos, [], conexiones)
+        mallas = cm.detectar_mallas(G, max_mallas=10)
+        print("Mallas encontradas:", mallas)
         mb.showinfo("Mallas detectadas", f"{mallas}")
+        ecuaciones, soluciones, operaciones = cm.armar_ecuaciones(mallas, conexiones)
+        msg = ""
+        for idx, (op_simbolica, op_numerica, op_fuentes) in enumerate(operaciones):
+            msg += f"Malla {idx+1}:\n"
+            if op_simbolica:
+                msg += f"  Operación simbólica: {op_simbolica}\n"
+                msg += f"  Operación numérica: {op_numerica}\n"
+            if op_fuentes:
+                msg += f"  Fuentes: {op_fuentes}\n"
+            msg += f"  Ecuación: {ecuaciones[idx]}\n\n"
+
+        import tkinter.messagebox as mb
+        mb.showinfo("Operación de malla(s)", msg)
+        mb.showinfo("Solución de mallas", f"{soluciones}")
+
+    def obtener_nodos_manuales(self):
+        nodos_manuales = []
+        for (fila, col), dato in self.componentes.items():
+            tipo = dato[0] if isinstance(dato, tuple) else dato
+            if tipo == "nodo":
+                nodos_manuales.append((fila, col))
+        return nodos_manuales
+
+    def obtener_camino(self, pos1, pos2):
+        # Solo permite caminos horizontales o verticales
+        fila1, col1 = pos1
+        fila2, col2 = pos2
+        camino = []
+        if fila1 == fila2:
+            # Horizontal
+            for c in range(min(col1, col2)+1, max(col1, col2)):
+                camino.append((fila1, c))
+        elif col1 == col2:
+            # Vertical
+            for f in range(min(fila1, fila2)+1, max(fila1, fila2)):
+                camino.append((f, col1))
+        else:
+            return None  # No es un camino recto
+        return camino
 
 
