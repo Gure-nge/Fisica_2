@@ -75,9 +75,17 @@ class CircuitEditor:
                 self.componentes[pos] = tipo
 
         self.redibujar_componentes()
-
+        
     def redibujar_componentes(self):
         self.canvas.delete("componente")
+        # --- Primero, obtenemos los nodos manuales y les asignamos un número ---
+        nodos_manuales = []
+        for (fila, col), dato in self.componentes.items():
+            tipo = dato[0] if isinstance(dato, tuple) else dato
+            if tipo == "nodo":
+                nodos_manuales.append((fila, col))
+        pos_a_nodo = {pos: f"N{i}" for i, pos in enumerate(nodos_manuales)}
+        # --- Ahora dibujamos todos los componentes ---
         for (fila, col), dato in self.componentes.items():
             if isinstance(dato, tuple):
                 tipo, valor = dato
@@ -101,6 +109,9 @@ class CircuitEditor:
             elif tipo == "nodo":
                 r = 6
                 self.canvas.create_oval(x - r, y - r, x + r, y + r, fill="blue", outline="black", tags="componente")
+                # Dibuja el número del nodo al lado del punto azul
+                nombre_nodo = pos_a_nodo.get((fila, col), "")
+                self.canvas.create_text(x, y-15, text=nombre_nodo, fill="black", font=("Arial", 10, "bold"), tags="componente")
             elif tipo == "capacitor":
                 self.canvas.create_rectangle(x-20, y-10, x+20, y+10, fill="lightblue", tags="componente")
                 self.canvas.create_text(x, y, text=f"A\n{valor}", tags="componente")
@@ -143,7 +154,7 @@ class CircuitEditor:
                                     f"Ingrese el valor para {tipo.upper()} entre {pos1} y {pos2}:",
                                     initialvalue=1.0
                                 )
-                            par = tuple(sorted([pos_a_nodo[pos1], pos_a_nodo[pos2]]) + [tipo, valor])
+                            par = tuple(sorted([pos_a_nodo[pos1], pos_a_nodo[pos2]]) + [tipo, valor, punto])
                             if par not in conexiones_set:
                                 conexiones_set.add(par)
                                 conexiones.append((pos_a_nodo[pos1], pos_a_nodo[pos2], tipo, valor))

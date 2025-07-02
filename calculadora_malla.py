@@ -14,9 +14,20 @@ def construir_grafo(nodos, componentes, conexiones):
         G.add_edge(n1, n2, tipo=tipo, valor=valor)
     return G
 
-def detectar_mallas(G, max_mallas=2):
+def detectar_mallas(G, max_mallas=None):
+    """
+    Detecta la base de ciclos fundamentales del grafo G usando un árbol generador.
+    Solo retorna la cantidad mínima de mallas independientes necesarias.
+    """
     ciclos = nx.cycle_basis(G)
-    return ciclos[:max_mallas]
+    E = G.number_of_edges()
+    N = G.number_of_nodes()
+    L = E - N + 1
+    if max_mallas is not None:
+        L = min(L, max_mallas)
+    return ciclos[:L]
+
+
 def armar_ecuaciones(mallas, conexiones):
     import sympy as sp
 
