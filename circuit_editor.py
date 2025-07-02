@@ -66,7 +66,7 @@ class CircuitEditor:
                 valor = sd.askfloat(
                     "Valor del componente",
                     f"Ingrese el valor para {tipo.upper()} en ({fila},{col}):",
-                    minvalue=0.01, initialvalue=1.0
+                    initialvalue=1.0
                 )
                 if valor is None:
                     return  # No colocar si el usuario cancela
@@ -141,7 +141,7 @@ class CircuitEditor:
                                 valor = sd.askfloat(
                                     "Valor del componente",
                                     f"Ingrese el valor para {tipo.upper()} entre {pos1} y {pos2}:",
-                                    minvalue=0.01, initialvalue=1.0
+                                    initialvalue=1.0
                                 )
                             par = tuple(sorted([pos_a_nodo[pos1], pos_a_nodo[pos2]]) + [tipo, valor])
                             if par not in conexiones_set:

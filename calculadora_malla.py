@@ -8,7 +8,7 @@ def construir_grafo(nodos, componentes, conexiones):
         G.add_node(nodo)
     for c in conexiones:
         if len(c) != 4:
-            print(f"❌ Conexión inválida en índice: {c} (esperado 4 elementos)")
+            print(f"Conexión inválida en índice: {c} (esperado 4 elementos)")
             continue
         n1, n2, tipo, valor = c
         G.add_edge(n1, n2, tipo=tipo, valor=valor)
@@ -17,7 +17,6 @@ def construir_grafo(nodos, componentes, conexiones):
 def detectar_mallas(G, max_mallas=2):
     ciclos = nx.cycle_basis(G)
     return ciclos[:max_mallas]
-
 def armar_ecuaciones(mallas, conexiones):
     import sympy as sp
 
@@ -26,11 +25,13 @@ def armar_ecuaciones(mallas, conexiones):
     ecuaciones = []
     operaciones = []  # Aquí guardaremos la operación simbólica y numérica
 
-    # Construir un diccionario para buscar el valor y tipo de cada conexión
+    # Construir un diccionario para guardar TODAS las conexiones entre cada par de nodos
     conn_dict = {}
     for n1, n2, tipo, valor in conexiones:
         key = tuple(sorted([n1, n2]))
-        conn_dict[key] = (tipo, valor)
+        if key not in conn_dict:
+            conn_dict[key] = []
+        conn_dict[key].append((tipo, valor))
 
     for idx, malla in enumerate(mallas):
         eq = 0
@@ -43,24 +44,24 @@ def armar_ecuaciones(mallas, conexiones):
             n2 = malla[(i+1)%len(malla)]
             key = tuple(sorted([n1, n2]))
             if key in conn_dict:
-                tipo, valor = conn_dict[key]
-                signo = 1 if (n1 < n2) else -1
-                if tipo == "resistencia":
-                    suma_resistencias.append(f"R({n1},{n2})")
-                    suma_valores.append(str(valor))
-                    suma_corrientes = 0
-                    for j, m2 in enumerate(mallas):
-                        for k in range(len(m2)):
-                            m2_n1 = m2[k]
-                            m2_n2 = m2[(k+1)%len(m2)]
-                            m2_key = tuple(sorted([m2_n1, m2_n2]))
-                            if m2_key == key:
-                                signo_j = 1 if (m2_n1 < m2_n2) else -1
-                                suma_corrientes += I[j] * signo_j
-                    eq += valor * suma_corrientes * signo
-                elif tipo == "voltaje":
-                    suma_fuentes.append(str(valor))
-                    eq -= valor * signo
+                for tipo, valor in conn_dict[key]:
+                    signo = 1 if (n1 < n2) else -1
+                    if tipo == "resistencia":
+                        suma_resistencias.append(f"R({n1},{n2})")
+                        suma_valores.append(str(valor))
+                        suma_corrientes = 0
+                        for j, m2 in enumerate(mallas):
+                            for k in range(len(m2)):
+                                m2_n1 = m2[k]
+                                m2_n2 = m2[(k+1)%len(m2)]
+                                m2_key = tuple(sorted([m2_n1, m2_n2]))
+                                if m2_key == key:
+                                    signo_j = 1 if (m2_n1 < m2_n2) else -1
+                                    suma_corrientes += I[j] * signo_j
+                        eq += valor * suma_corrientes * signo
+                    elif tipo == "voltaje":
+                        suma_fuentes.append(str(valor))
+                        eq -= valor * signo
         ecuaciones.append(eq)
         # Guarda la operación simbólica y numérica
         op_simbolica = " + ".join(suma_resistencias)
